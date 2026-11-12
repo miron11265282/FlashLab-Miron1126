@@ -1,0 +1,45 @@
+name: Сборка Mac, iPhone и Linux
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-14, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Скачать веб-версию игры из релиза
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
+          gh release download "$TAG" -p 'FlashLab-web.zip' -O web.zip
+          mkdir -p app/web ios/web && unzip -q web.zip -d app/web && unzip -q web.zip -d ios/web
+          echo "TAG=$TAG" >> $GITHUB_ENV
+      - name: Electron (dmg / AppImage / deb)
+        working-directory: app
+        env: { CSC_IDENTITY_AUTO_DISCOVERY: "false" }
+        run: |
+          npm install
+          npx electron-builder --publish never
+      - name: iPhone .ipa без подписи
+        if: runner.os == 'macOS'
+        working-directory: ios
+        run: |
+          npm install
+          npx cap add ios
+          npx cap sync ios
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+          mkdir -p Payload && cp -R build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qr ../app/dist/FlashLab-${{ github.event.release.tag_name || env.TAG }}-ios-unsigned.ipa Payload
+      - name: Загрузить в релиз
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          cd app/dist
+          for f in *.dmg *.AppImage *.deb *.ipa; do [ -f "$f" ] && gh release upload "$TAG" "$f" --clobber || true; done
