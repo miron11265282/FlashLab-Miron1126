@@ -3,7 +3,10 @@
   "productName": "miron1126 Flash Lab",
   "version": "6.0.0",
   "description": "Игра про прошивку и ремонт телефонов",
-  "author": "miron1126",
+  "author": {
+    "name": "miron1126",
+    "email": "miron1126@users.noreply.github.com"
+  },
   "main": "main.js",
   "scripts": {
     "dist": "electron-builder"
@@ -34,11 +37,12 @@
       ],
       "category": "Game",
       "icon": "web/icon-512.png",
-      "maintainer": "miron1126"
+      "maintainer": "miron1126 <miron1126@users.noreply.github.com>"
     },
     "artifactName": "FlashLab-${version}-${os}.${ext}",
     "directories": {
       "output": "dist"
     }
-  }
+  },
+  "homepage": "https://miron11265282.github.io/FlashLab-Miron1126/"
 }
