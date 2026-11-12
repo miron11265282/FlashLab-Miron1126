@@ -1,6 +1,6 @@
 # miron1126 Flash Lab
 
-Игра про прошивку и ремонт телефонов. Сайт: https://miron11265282.github.io/FlashLab_Miron1126/
+Игра про прошивку и ремонт телефонов. Сайт: https://miron11265282.github.io/FlashLab-Miron1126/
 
 ## Как выложить (один раз)
 1. Создай публичный репозиторий **FlashLab_Miron1126** на GitHub и загрузи в него всё из этой папки (папки `docs`, `app`, `ios`, `.github` и этот файл).
