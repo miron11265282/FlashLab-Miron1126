@@ -1,0 +1,3 @@
+const {app,BrowserWindow,shell}=require('electron');const path=require('path');
+app.whenReady().then(()=>{const w=new BrowserWindow({width:1600,height:950,backgroundColor:'#06070b',title:'miron1126 Flash Lab',autoHideMenuBar:true,webPreferences:{contextIsolation:true}});
+ w.loadFile(path.join(__dirname,'web','index.html'));w.webContents.setWindowOpenHandler(({url})=>{shell.openExternal(url);return{action:'deny'}})});app.on('window-all-closed',()=>app.quit());

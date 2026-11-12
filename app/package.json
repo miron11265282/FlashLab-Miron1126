@@ -1,0 +1,44 @@
+{
+  "name": "flashlab",
+  "productName": "miron1126 Flash Lab",
+  "version": "6.0.0",
+  "description": "Игра про прошивку и ремонт телефонов",
+  "author": "miron1126",
+  "main": "main.js",
+  "scripts": {
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.miron1126.flashlab",
+    "productName": "miron1126 Flash Lab",
+    "files": [
+      "main.js",
+      "web/**/*"
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.games",
+      "icon": "web/icon-512.png",
+      "identity": null
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Game",
+      "icon": "web/icon-512.png",
+      "maintainer": "miron1126"
+    },
+    "artifactName": "FlashLab-${version}-${os}.${ext}",
+    "directories": {
+      "output": "dist"
+    }
+  }
+}
