@@ -8,6 +8,7 @@ permissions:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-14, ubuntu-latest]
     runs-on: ${{ matrix.os }}
@@ -17,10 +18,19 @@ jobs:
         with: { node-version: 20 }
       - name: Скачать веб-версию игры из релиза
         env: { GH_TOKEN: "${{ github.token }}" }
+        shell: bash
         run: |
-          TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
-          gh release download "$TAG" -p 'FlashLab-web.zip' -O web.zip
-          mkdir -p app/web ios/web && unzip -q web.zip -d app/web && unzip -q web.zip -d ios/web
+          TAG="${{ github.event.release.tag_name }}"
+          if [ -z "$TAG" ]; then TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName'); fi
+          echo "Релиз: $TAG"
+          gh release view "$TAG" --json assets -q '.assets[].name'
+          mkdir -p dl && gh release download "$TAG" -D dl -p '*web*' -p '*Web*' -p '*веб*' || true
+          ls -la dl
+          if ls dl/*.part1 >/dev/null 2>&1; then for p in dl/*.part1; do cat "${p%.part1}".part* > "${p%.part1}"; done; fi
+          Z=$(ls dl/*.zip 2>/dev/null | head -1)
+          if [ -z "$Z" ]; then echo "::error::В релизе $TAG нет веб-версии. Прикрепи файл FlashLab-web.zip (или FlashLab-6.0.0-web.zip)"; exit 1; fi
+          mkdir -p app/web ios/web && unzip -q "$Z" -d app/web && unzip -q "$Z" -d ios/web
+          if [ ! -f app/web/index.html ]; then D=$(dirname $(find app/web -name index.html | head -1)); cp -r "$D"/. app/web/ ; cp -r "$D"/. ios/web/ ; fi
           echo "TAG=$TAG" >> $GITHUB_ENV
       - name: Electron (dmg / AppImage / deb)
         working-directory: app
@@ -37,7 +47,7 @@ jobs:
           npx cap sync ios
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
           mkdir -p Payload && cp -R build/Build/Products/Release-iphoneos/App.app Payload/
-          zip -qr ../app/dist/FlashLab-${{ github.event.release.tag_name || env.TAG }}-ios-unsigned.ipa Payload
+          zip -qr ../app/dist/FlashLab-${TAG#v}-ios-unsigned.ipa Payload
       - name: Загрузить в релиз
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
