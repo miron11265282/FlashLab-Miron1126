@@ -1,0 +1,8 @@
+{
+  "appId": "com.miron1126.flashlab",
+  "appName": "Flash Lab",
+  "webDir": "web",
+  "ios": {
+    "contentInset": "never"
+  }
+}
