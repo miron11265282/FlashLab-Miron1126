@@ -10,34 +10,34 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        os: [macos-14, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with: { node-version: 20 }
       - name: Скачать веб-версию игры из релиза
         env: { GH_TOKEN: "${{ github.token }}" }
-        shell: bash
         run: |
           TAG="${{ github.event.release.tag_name }}"
-          if [ -z "$TAG" ]; then TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName'); fi
-          echo "Релиз: $TAG"
-          gh release view "$TAG" --json assets -q '.assets[].name'
-          mkdir -p dl && gh release download "$TAG" -D dl -p '*web*' -p '*Web*' -p '*веб*' || true
-          ls -la dl
-          if ls dl/*.part1 >/dev/null 2>&1; then for p in dl/*.part1; do cat "${p%.part1}".part* > "${p%.part1}"; done; fi
-          Z=$(ls dl/*.zip 2>/dev/null | head -1)
-          if [ -z "$Z" ]; then echo "::error::В релизе $TAG нет веб-версии. Прикрепи файл FlashLab-web.zip (или FlashLab-6.0.0-web.zip)"; exit 1; fi
-          mkdir -p app/web ios/web && unzip -q "$Z" -d app/web && unzip -q "$Z" -d ios/web
-          if [ ! -f app/web/index.html ]; then D=$(dirname $(find app/web -name index.html | head -1)); cp -r "$D"/. app/web/ ; cp -r "$D"/. ios/web/ ; fi
+          [ -z "$TAG" ] && TAG=$(gh release view --json tagName -q .tagName)
+          gh release download "$TAG" -p '*web.zip' -O web.zip --clobber
+          mkdir -p app/web ios/web
+          unzip -qo web.zip -d app/web
+          unzip -qo web.zip -d ios/web
           echo "TAG=$TAG" >> $GITHUB_ENV
-      - name: Electron (dmg / AppImage / deb)
+      - name: Electron (dmg для Intel и Apple / AppImage / deb)
         working-directory: app
         env: { CSC_IDENTITY_AUTO_DISCOVERY: "false" }
         run: |
           npm install
-          npx electron-builder --publish never
+          npm version "${TAG#v}" --no-git-tag-version --allow-same-version
+          NAME='FlashLab-${version}-${os}-${arch}.${ext}'
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            npx electron-builder --mac --x64 --arm64 -c.artifactName="$NAME" --publish never
+          else
+            npx electron-builder --linux -c.artifactName="$NAME" --publish never
+          fi
       - name: iPhone .ipa без подписи
         if: runner.os == 'macOS'
         continue-on-error: true
@@ -47,11 +47,14 @@ jobs:
           npx cap add ios
           npx cap sync ios
           xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
-          mkdir -p Payload && cp -R build/Build/Products/Release-iphoneos/App.app Payload/
+          mkdir -p Payload ../app/dist && cp -R build/Build/Products/Release-iphoneos/App.app Payload/
           zip -qr ../app/dist/FlashLab-${TAG#v}-ios-unsigned.ipa Payload
       - name: Загрузить в релиз
         if: always()
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
-          cd app/dist
-          for f in *.dmg *.AppImage *.deb *.ipa; do [ -f "$f" ] && gh release upload "$TAG" "$f" --clobber || true; done
+          cd app/dist || exit 0
+          shopt -s nullglob
+          for f in *.dmg *.AppImage *.deb *.ipa; do
+            gh release upload "$TAG" "$f" --clobber
+          done
